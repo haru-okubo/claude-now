@@ -4,40 +4,61 @@ import { createServiceClient } from "@/lib/supabase";
 import { Resend } from "resend";
 import type { Topic } from "@/lib/types";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
-const PROMPT = `You are an editor explaining Claude (by Anthropic) product updates to non-technical Japanese users.
+const PROMPT = `あなたは「Claude Now」というメディアの編集長です。読者はITに詳しくない日本の一般ユーザー（会社員、学生、個人事業主など）です。
+読者が知りたいのは「自分にとって何が変わるのか」「明日から何ができるようになるのか」です。
 
-Use web_search to fetch ALL THREE of these pages and aggregate the results:
-1. https://docs.anthropic.com/en/release-notes/claude-apps  (Claude app features: claude.ai, mobile, desktop)
-2. https://docs.anthropic.com/en/release-notes/api  (model updates, API changes)
-3. https://www.anthropic.com/news  (major product announcements, new model launches)
+■ 作業手順
 
-STEP 1 — Fetch each page and list the exact date headings you find (format: "Month DD, YYYY"). Do not invent dates.
+STEP 1: web_search を使って以下の3ページを取得し、すべての日付見出しを列挙してください。
+1. https://docs.anthropic.com/en/release-notes/claude-apps
+2. https://docs.anthropic.com/en/release-notes/api
+3. https://www.anthropic.com/news
 
-STEP 2 — Group all topics from all 3 sources by date. For the most recent 1-2 dates across all sources, produce the output below.
-- If the same announcement appears on multiple pages, include it only once.
-- Include ALL product launches, new features, and new services — even if announced on anthropic.com/news (e.g. new agents, new products, major capability launches). These are the most important to capture.
-- Exclude only truly internal/infrastructure changes (e.g. SDK bug fixes, internal tooling). When in doubt, include it.
-- source field: "app" | "api" | "news"
-- source_url: the direct URL to the specific announcement or release note entry (not just the homepage)
-- impact: integer 1-5 (1=minor fix, 2=small improvement, 3=notable feature, 4=major feature, 5=landmark release)
-- impact_desc: one short Japanese phrase explaining the impact level
+STEP 2: 3ソース横断で直近 5〜7 日付分のトピックをすべてピックアップしてください。
+- 同じ内容が複数ページにあれば1つにまとめる
+- 新製品、新機能、新モデル、料金変更、UI変更 → すべて含める
+- SDK内部バグ修正など完全に開発者内部の話だけ除外
 
-RULES:
-- Only dates that ACTUALLY appear on the fetched pages
-- All text in Japanese
-- No jargon, no hype — plain facts only
-- day_summary: 4-6 sentences covering ALL topics for that day across all sources
-- topics: every relevant topic from that date as a separate item
-- audience_personal: true if useful for individual claude.ai / mobile / desktop users
-- audience_business: true if useful for team/enterprise/admin users
-- usecases: 2-3 concrete examples
-- irrelevant_personal / irrelevant_business: honest statement of who this does NOT affect
+STEP 3: 以下のJSON形式で出力してください。
 
-CRITICAL: Your entire response must be ONLY a raw JSON array. No text before or after it. No markdown.
+■ 書き方ルール（最重要）
 
-[{"date":"YYYY-MM-DD","day_summary":"4〜6文の日本語サマリー","topics":[{"title":"20字以内","summary":"2〜3文","source":"app","audience_personal":true,"audience_business":false,"impact":3,"impact_desc":"影響範囲の一言説明","usecases":["例1","例2"],"irrelevant_personal":"関係ない個人ユーザー","irrelevant_business":"関係ないビジネスユーザー","source_url":"https://..."}]}]`;
+【day_summary】 6〜10文。その日の全トピックを「友達に口頭で説明する」くらいの温度感で。
+- 悪い例: 「Managedエージェントが正式版になった」← 何のことかわからない
+- 良い例: 「Claudeに"放っておいても勝手に仕事してくれる"機能（Managedエージェント）が正式に使えるようになりました。たとえば「毎朝このフォルダのファイルを整理して」みたいな指示を出しておくと、Claudeが自動でやってくれます。」
+
+【topics.title】 25字以内。機能名ではなく「何ができるようになったか」で書く。
+- 悪い例: 「ant CLIツール発表」
+- 良い例: 「ターミナルからClaudeに直接指示できるように」
+
+【topics.summary】 4〜6文。以下を必ず含める:
+1. 何が変わったのか（ビフォー/アフター）
+2. 具体的にどう使うのか（操作イメージ）
+3. どんな人に嬉しいのか
+
+【topics.usecases】 3〜4個。「〜な人が」「〜するとき」「〜できるようになった」の形で、具体的な生活/仕事シーンを描く。
+- 悪い例: 「長時間の自動タスク処理」
+- 良い例: 「毎週の経費レポートを、データを渡すだけでClaudeが自動で作成してくれるようになった」
+
+【topics.impact_desc】 「誰に」「どのくらい」影響するかを1文で。
+- 悪い例: 「企業の自動化業務」
+- 良い例: 「Claudeを日常的に使っている人全員の操作感が変わるレベル」
+
+■ その他のフィールド
+- source: "app" | "api" | "news"
+- source_url: 該当する記事/セクションへの直接URL
+- audience_personal: 個人のclaude.ai/モバイル/デスクトップユーザーに関係あるか
+- audience_business: チーム/企業管理者に関係あるか
+- impact: 1-5 の整数（1=軽微な修正, 2=小さな改善, 3=注目すべき新機能, 4=大型機能, 5=歴史的リリース）
+- irrelevant_personal: この機能が関係ない個人ユーザーの説明
+- irrelevant_business: この機能が関係ないビジネスユーザーの説明
+
+■ 出力形式
+JSONの配列のみ。前後にテキストやマークダウンを絶対に付けないこと。
+
+[{"date":"YYYY-MM-DD","day_summary":"6〜10文の日本語サマリー","topics":[{"title":"25字以内で何ができるようになったか","summary":"4〜6文の詳しい説明","source":"app","audience_personal":true,"audience_business":false,"impact":3,"impact_desc":"誰にどのくらい影響するか","usecases":["具体的シーン1","具体的シーン2","具体的シーン3"],"irrelevant_personal":"関係ない個人ユーザー","irrelevant_business":"関係ないビジネスユーザー","source_url":"https://..."}]}]`;
 
 interface DayData {
   date: string;
@@ -50,7 +71,7 @@ async function fetchAndSummarize(): Promise<DayData[]> {
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 4000,
+    max_tokens: 16000,
     tools: [{ type: "web_search_20250305", name: "web_search" }],
     messages: [{ role: "user", content: PROMPT }],
   });
