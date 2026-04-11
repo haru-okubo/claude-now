@@ -4,26 +4,39 @@ import { createServiceClient } from "@/lib/supabase";
 import { Resend } from "resend";
 import type { Topic } from "@/lib/types";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
-const PROMPT = `あなたは「Claude Now」というメディアの編集長です。読者はITに詳しくない日本の一般ユーザー（会社員、学生、個人事業主など）です。
-読者が知りたいのは「自分にとって何が変わるのか」「明日から何ができるようになるのか」です。
+// --- ソースごとの個別プロンプト ---
 
-■ 作業手順
+const SOURCES = [
+  {
+    id: "app" as const,
+    url: "https://docs.anthropic.com/en/release-notes/claude-apps",
+    label: "Claude Apps（claude.ai、モバイル、デスクトップの機能更新）",
+  },
+  {
+    id: "api" as const,
+    url: "https://docs.anthropic.com/en/release-notes/api",
+    label: "API / Models（新モデル、API変更、開発者向け機能）",
+  },
+  {
+    id: "news" as const,
+    url: "https://www.anthropic.com/news",
+    label: "Anthropic News（新製品発表、パートナーシップ、企業ニュース）",
+  },
+];
 
-STEP 1: web_search を使って以下の3ページを取得し、すべての日付見出しを列挙してください。
-1. https://docs.anthropic.com/en/release-notes/claude-apps
-2. https://docs.anthropic.com/en/release-notes/api
-3. https://www.anthropic.com/news
+function buildPrompt(source: (typeof SOURCES)[number]) {
+  return `あなたは「Claude Now」というメディアの編集長です。読者はITに詳しくない日本の一般ユーザー（会社員、学生、個人事業主など）です。
 
-STEP 2: 3ソース横断で直近 2〜3 日付分のトピックをすべてピックアップしてください。
-- 同じ内容が複数ページにあれば1つにまとめる
-- 新製品、新機能、新モデル、料金変更、UI変更 → すべて含める
-- SDK内部バグ修正など完全に開発者内部の話だけ除外
+■ 作業
+web_search で以下のページを取得し、直近 2〜3 日付分のトピックをすべてピックアップしてください。
+URL: ${source.url}
+内容: ${source.label}
 
-STEP 3: 以下のJSON形式で出力してください。
+1つも取りこぼさないこと。各日付セクションのすべての項目を列挙してください。
 
-■ 書き方ルール（最重要）
+■ 書き方ルール
 
 【day_summary】 6〜10文。その日の全トピックを「友達に口頭で説明する」くらいの温度感で。
 - 悪い例: 「Managedエージェントが正式版になった」← 何のことかわからない
@@ -43,22 +56,19 @@ STEP 3: 以下のJSON形式で出力してください。
 - 良い例: 「毎週の経費レポートを、データを渡すだけでClaudeが自動で作成してくれるようになった」
 
 【topics.impact_desc】 「誰に」「どのくらい」影響するかを1文で。
-- 悪い例: 「企業の自動化業務」
-- 良い例: 「Claudeを日常的に使っている人全員の操作感が変わるレベル」
 
-■ その他のフィールド
-- source: "app" | "api" | "news"
+■ フィールド
+- source: 固定で "${source.id}"
 - source_url: 該当する記事/セクションへの直接URL
-- audience_personal: 個人のclaude.ai/モバイル/デスクトップユーザーに関係あるか
+- audience_personal: 個人ユーザーに関係あるか
 - audience_business: チーム/企業管理者に関係あるか
-- impact: 1-5 の整数（1=軽微な修正, 2=小さな改善, 3=注目すべき新機能, 4=大型機能, 5=歴史的リリース）
-- irrelevant_personal: この機能が関係ない個人ユーザーの説明
-- irrelevant_business: この機能が関係ないビジネスユーザーの説明
+- impact: 1-5（1=軽微, 3=注目, 5=歴史的）
+- irrelevant_personal / irrelevant_business: 関係ない人の説明
 
-■ 出力形式
-JSONの配列のみ。前後にテキストやマークダウンを絶対に付けないこと。
+■ 出力: JSON配列のみ。前後にテキストやマークダウンを絶対に付けないこと。
 
-[{"date":"YYYY-MM-DD","day_summary":"6〜10文の日本語サマリー","topics":[{"title":"25字以内で何ができるようになったか","summary":"4〜6文の詳しい説明","source":"app","audience_personal":true,"audience_business":false,"impact":3,"impact_desc":"誰にどのくらい影響するか","usecases":["具体的シーン1","具体的シーン2","具体的シーン3"],"irrelevant_personal":"関係ない個人ユーザー","irrelevant_business":"関係ないビジネスユーザー","source_url":"https://..."}]}]`;
+[{"date":"YYYY-MM-DD","day_summary":"6〜10文","topics":[{"title":"25字以内","summary":"4〜6文","source":"${source.id}","audience_personal":true,"audience_business":false,"impact":3,"impact_desc":"一文","usecases":["シーン1","シーン2","シーン3"],"irrelevant_personal":"説明","irrelevant_business":"説明","source_url":"https://..."}]}]`;
+}
 
 interface DayData {
   date: string;
@@ -66,14 +76,15 @@ interface DayData {
   topics: Topic[];
 }
 
-async function fetchAndSummarize(): Promise<DayData[]> {
-  const client = new Anthropic();
-
+async function fetchSource(
+  client: Anthropic,
+  source: (typeof SOURCES)[number]
+): Promise<DayData[]> {
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 16000,
+    max_tokens: 8000,
     tools: [{ type: "web_search_20250305", name: "web_search" }],
-    messages: [{ role: "user", content: PROMPT }],
+    messages: [{ role: "user", content: buildPrompt(source) }],
   });
 
   const text = response.content
@@ -81,33 +92,87 @@ async function fetchAndSummarize(): Promise<DayData[]> {
     .map((b) => b.text)
     .join("");
 
-  if (!text) {
-    throw new Error(
-      "No text in response. Block types: " +
-        response.content.map((b) => b.type).join(", ")
-    );
-  }
+  if (!text) return [];
 
   const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) {
-    throw new Error("No JSON found in response: " + text.slice(0, 300));
+  if (!jsonMatch) return [];
+
+  try {
+    const days: DayData[] = JSON.parse(jsonMatch[0]);
+    const now = new Date();
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+    return days.filter((day) => {
+      if (!day.date || !day.topics || !Array.isArray(day.topics)) return false;
+      const d = new Date(day.date);
+      if (isNaN(d.getTime())) return false;
+      if (d > now || d < oneYearAgo) return false;
+      return true;
+    });
+  } catch {
+    return [];
+  }
+}
+
+// 3ソースの結果を日付でマージ
+function mergeDays(allResults: DayData[][]): DayData[] {
+  const byDate = new Map<string, DayData>();
+
+  for (const days of allResults) {
+    for (const day of days) {
+      const existing = byDate.get(day.date);
+      if (existing) {
+        // トピックを追加、サマリーは長い方を採用
+        existing.topics.push(...day.topics);
+        if (day.day_summary.length > existing.day_summary.length) {
+          existing.day_summary =
+            existing.day_summary + "\n\n" + day.day_summary;
+        }
+      } else {
+        byDate.set(day.date, { ...day, topics: [...day.topics] });
+      }
+    }
   }
 
-  const days: DayData[] = JSON.parse(jsonMatch[0]);
+  return Array.from(byDate.values()).sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+}
 
-  // Validate dates
-  const now = new Date();
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+// マージ後のday_summaryを再生成
+async function regenerateSummaries(
+  client: Anthropic,
+  days: DayData[]
+): Promise<DayData[]> {
+  for (const day of days) {
+    const topicTitles = day.topics.map((t) => t.title).join("、");
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: `以下は ${day.date} のClaudeアップデート一覧です。これを非技術者の友達に口頭で説明するような6〜10文の日本語サマリーにまとめてください。専門用語は避け、「何ができるようになったか」を中心に書いてください。テキストのみ出力。マークダウン不可。
 
-  return days.filter((day) => {
-    if (!day.date || !day.topics || !Array.isArray(day.topics)) return false;
-    const d = new Date(day.date);
-    if (isNaN(d.getTime())) return false;
-    if (d > now) return false;
-    if (d < oneYearAgo) return false;
-    return true;
-  });
+トピック: ${topicTitles}
+
+各トピックの詳細:
+${day.topics.map((t) => `- ${t.title}: ${t.summary}`).join("\n")}`,
+        },
+      ],
+    });
+
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+
+    if (text) {
+      day.day_summary = text;
+    }
+  }
+  return days;
 }
 
 async function sendNewsletter(days: DayData[]) {
@@ -153,7 +218,6 @@ async function sendNewsletter(days: DayData[]) {
       </p>
     </div>`;
 
-  // Send in batches of 50
   for (let i = 0; i < emails.length; i += 50) {
     const batch = emails.slice(i, i + 50);
     await resend.emails.send({
@@ -166,7 +230,6 @@ async function sendNewsletter(days: DayData[]) {
 }
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && cronSecret !== "your-cron-secret") {
@@ -176,40 +239,62 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const days = await fetchAndSummarize();
+    const client = new Anthropic();
+    const supabase = createServiceClient();
 
-    if (days.length === 0) {
-      return NextResponse.json({ message: "No valid data found" });
+    // 既存の日付を取得（上書き防止）
+    const { data: existingArticles } = await supabase
+      .from("articles")
+      .select("date");
+    const existingDates = new Set(
+      (existingArticles || []).map((a) => a.date)
+    );
+
+    // 3ソースを並列で取得
+    const results = await Promise.all(
+      SOURCES.map((source) => fetchSource(client, source))
+    );
+
+    // 日付でマージ
+    let merged = mergeDays(results);
+
+    // 既存日付を除外（上書きしない）
+    merged = merged.filter((day) => !existingDates.has(day.date));
+
+    if (merged.length === 0) {
+      return NextResponse.json({
+        message: "No new articles found",
+        existingDates: Array.from(existingDates),
+      });
     }
 
-    const supabase = createServiceClient();
-    let newArticles = 0;
+    // マージ後のday_summaryを再生成
+    merged = await regenerateSummaries(client, merged);
 
-    for (const day of days) {
-      const { error } = await supabase.from("articles").upsert(
-        {
-          date: day.date,
-          day_summary: day.day_summary,
-          topics: day.topics,
-        },
-        { onConflict: "date" }
-      );
+    // 保存
+    let newArticles = 0;
+    for (const day of merged) {
+      const { error } = await supabase.from("articles").insert({
+        date: day.date,
+        day_summary: day.day_summary,
+        topics: day.topics,
+      });
 
       if (error) {
-        console.error(`Failed to upsert ${day.date}:`, error);
+        console.error(`Failed to insert ${day.date}:`, error);
       } else {
         newArticles++;
       }
     }
 
-    // Send newsletter if new articles were saved
     if (newArticles > 0) {
-      await sendNewsletter(days);
+      await sendNewsletter(merged);
     }
 
     return NextResponse.json({
-      message: `Saved ${newArticles} articles`,
-      dates: days.map((d) => d.date),
+      message: `Saved ${newArticles} new articles`,
+      dates: merged.map((d) => d.date),
+      skipped: Array.from(existingDates),
     });
   } catch (err) {
     console.error("Cron fetch-articles error:", err);
