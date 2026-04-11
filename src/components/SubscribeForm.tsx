@@ -21,7 +21,7 @@ export default function SubscribeForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "登録に失敗しました");
       setStatus("success");
-      setMessage("登録ありがとうございます！新着記事をメールでお届けします。");
+      setMessage("登録完了！次回のアップデートからメールでお届けします。");
       setEmail("");
     } catch (err) {
       setStatus("error");
@@ -32,41 +32,47 @@ export default function SubscribeForm() {
   return (
     <div
       style={{
-        background: "var(--card-bg)",
-        border: "1px solid var(--rule)",
-        padding: "24px",
-        marginTop: 32,
+        background: "var(--ink)",
+        color: "var(--bg)",
+        padding: "28px 24px",
+        marginTop: 20,
+        marginBottom: 8,
         textAlign: "center",
       }}
     >
       <div
         style={{
           fontFamily: "'Noto Serif JP', serif",
-          fontSize: 18,
+          fontSize: "clamp(16px, 2.5vw, 20px)",
           fontWeight: 700,
-          marginBottom: 8,
+          marginBottom: 6,
+          color: "var(--bg)",
         }}
       >
-        メールで最新情報を受け取る
+        「結局なにが変わったの？」をメールで届けます
       </div>
       <div
         style={{
           fontSize: 13,
-          color: "var(--ink-light)",
+          color: "rgba(245,240,232,0.7)",
           lineHeight: 1.7,
           marginBottom: 16,
+          maxWidth: 480,
+          margin: "0 auto 16px",
         }}
       >
-        Claudeの新機能・アップデートを日本語でお届けします
+        専門用語なし・日本語だけのやさしいまとめを、新しい更新があった日にお届け。
+        <br />
+        読むだけでClaude の今がわかります。
       </div>
 
       {status === "success" ? (
         <div
           style={{
-            fontFamily: "'DM Mono', monospace",
-            fontSize: 13,
-            color: "var(--accent)",
+            fontSize: 14,
+            color: "var(--bg)",
             padding: "12px",
+            background: "rgba(245,240,232,0.1)",
           }}
         >
           {message}
@@ -85,15 +91,15 @@ export default function SubscribeForm() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder="メールアドレス"
             required
             style={{
-              fontFamily: "'DM Mono', monospace",
-              fontSize: 13,
-              padding: "8px 14px",
-              border: "1px solid var(--rule)",
-              background: "var(--bg)",
-              color: "var(--ink)",
+              fontFamily: "'Noto Sans JP', sans-serif",
+              fontSize: 14,
+              padding: "10px 16px",
+              border: "1px solid rgba(245,240,232,0.3)",
+              background: "rgba(245,240,232,0.08)",
+              color: "var(--bg)",
               minWidth: 240,
               outline: "none",
             }}
@@ -102,19 +108,19 @@ export default function SubscribeForm() {
             type="submit"
             disabled={status === "loading"}
             style={{
-              fontFamily: "'DM Mono', monospace",
-              fontSize: 12,
-              padding: "8px 20px",
+              fontFamily: "'Noto Sans JP', sans-serif",
+              fontSize: 14,
+              fontWeight: 500,
+              padding: "10px 24px",
               background: "var(--accent)",
               color: "white",
               border: "none",
               cursor: status === "loading" ? "not-allowed" : "pointer",
               opacity: status === "loading" ? 0.5 : 1,
-              letterSpacing: "0.08em",
               transition: "opacity 0.15s",
             }}
           >
-            {status === "loading" ? "登録中..." : "登録する"}
+            {status === "loading" ? "登録中..." : "無料で受け取る"}
           </button>
         </form>
       )}
@@ -122,7 +128,6 @@ export default function SubscribeForm() {
       {status === "error" && (
         <div
           style={{
-            fontFamily: "'DM Mono', monospace",
             fontSize: 12,
             color: "var(--accent)",
             marginTop: 8,

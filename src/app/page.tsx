@@ -53,6 +53,8 @@ export default function Home() {
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px" }}>
         <SourceBar />
 
+        <SubscribeForm />
+
         {/* Error */}
         {error && (
           <div
@@ -135,7 +137,6 @@ export default function Home() {
             <DateGroup key={article.id} article={article} isLatest={i === 0} />
           ))}
 
-        <SubscribeForm />
       </div>
 
       <Footer />
