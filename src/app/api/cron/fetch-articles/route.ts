@@ -157,7 +157,7 @@ async function sendNewsletter(days: DayData[]) {
   for (let i = 0; i < emails.length; i += 50) {
     const batch = emails.slice(i, i + 50);
     await resend.emails.send({
-      from: "Claude Now <noreply@anchorup.jp>",
+      from: "Claude Now <noreply@mail.anchorup.jp>",
       to: batch,
       subject: `Claude Now — ${latestDay.date} のアップデート`,
       html,
