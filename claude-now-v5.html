@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Now — Claudeの最新情報を、あなたの言葉で。</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #F5F0E8;
+    --ink: #1A1612;
+    --ink-light: #6B6560;
+    --accent: #C84B2F;
+    --accent-soft: #F0D9D3;
+    --rule: #D4CEC4;
+    --card-bg: #FDFAF5;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; font-weight: 300; }
+
+  .masthead { border-bottom: 3px double var(--ink); padding: 20px 0 16px; text-align: center; }
+  .masthead::before { content: ''; display: block; border-top: 1px solid var(--ink); margin: 0 24px 12px; }
+  .masthead-date { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.15em; color: var(--ink-light); margin-bottom: 6px; }
+  .masthead-title { font-family: 'Noto Serif JP', serif; font-size: clamp(32px, 6vw, 56px); font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .masthead-tagline { font-size: 12px; color: var(--ink-light); letter-spacing: 0.12em; margin-top: 6px; }
+  .masthead::after { content: ''; display: block; border-bottom: 1px solid var(--ink); margin: 12px 24px 0; }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+  .source-bar { border-bottom: 1px solid var(--rule); padding: 12px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .source-label { font-size: 11px; letter-spacing: 0.1em; color: var(--ink-light); font-family: 'DM Mono', monospace; }
+  .source-tag { font-family: 'DM Mono', monospace; font-size: 11px; padding: 4px 10px; border: 1px solid var(--rule); color: var(--ink-light); }
+  .fetch-btn { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 16px; background: var(--accent); color: white; border: none; cursor: pointer; letter-spacing: 0.08em; transition: opacity 0.15s; }
+  .fetch-btn:hover { opacity: 0.85; }
+  .fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .progress-bar { height: 2px; background: var(--rule); display: none; }
+  .progress-bar.active { display: block; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.4s ease; }
+
+  /* DATE GROUP */
+  .date-group { padding: 36px 0 0; }
+  .date-group + .date-group { border-top: 2px solid var(--ink); margin-top: 36px; }
+
+  /* DATE LABEL */
+  .date-label { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.2em; color: var(--ink-light); text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .date-label.latest { color: var(--accent); }
+  .date-label::after { content: ''; flex: 1; height: 1px; background: var(--rule); }
+  .latest-badge { font-family: 'DM Mono', monospace; font-size: 9px; background: var(--accent); color: white; padding: 2px 6px; letter-spacing: 0.1em; }
+
+  /* BIG SUMMARY CARD */
+  .summary-card { background: var(--ink); color: var(--bg); padding: 32px; margin-bottom: 24px; position: relative; }
+  .summary-card-eyebrow { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: rgba(245,240,232,0.5); margin-bottom: 14px; text-transform: uppercase; }
+  .summary-card-headline { font-family: 'Noto Serif JP', serif; font-size: clamp(18px, 3vw, 26px); font-weight: 700; line-height: 1.45; margin-bottom: 16px; color: var(--bg); }
+  .summary-card-body { font-size: 14px; line-height: 1.9; color: rgba(245,240,232,0.85); }
+  .summary-card-body p + p { margin-top: 10px; }
+  .summary-divider { border: none; border-top: 1px solid rgba(245,240,232,0.15); margin: 20px 0; }
+  .summary-scroll-hint { font-family: 'DM Mono', monospace; font-size: 10px; color: rgba(245,240,232,0.4); letter-spacing: 0.1em; margin-top: 16px; }
+
+  /* TOPIC CARDS */
+  .topics-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--ink-light); text-transform: uppercase; margin-bottom: 12px; }
+  .topic-card { background: var(--card-bg); border: 1px solid var(--rule); border-left: 4px solid var(--rule); padding: 20px 24px; margin-bottom: 12px; }
+  .topic-card.personal { border-left-color: #2B4C7E; }
+  .topic-card.business { border-left-color: #2E6B4F; }
+  .topic-card.both { border-left-color: #5A3E78; }
+
+  .card-top { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .audience-tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; padding: 3px 8px; }
+  .tag-personal { background: #2B4C7E; color: white; }
+  .tag-business { background: #2E6B4F; color: white; }
+  .tag-both { background: #5A3E78; color: white; }
+  .tag-unrelated { background: var(--rule); color: var(--ink-light); }
+
+  .topic-title { font-family: 'Noto Serif JP', serif; font-size: clamp(15px, 2vw, 18px); font-weight: 700; line-height: 1.45; margin-bottom: 10px; }
+  .topic-summary { font-size: 14px; line-height: 1.8; color: var(--ink); margin-bottom: 14px; }
+
+  .topic-usecase { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 10px 14px; margin-bottom: 10px; }
+  .usecase-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 5px; text-transform: uppercase; }
+  .usecase-text { font-size: 13px; line-height: 1.75; }
+  .usecase-text li { margin-left: 0; margin-bottom: 4px; list-style: none; padding-left: 1em; text-indent: -1em; }
+  .usecase-text li::before { content: "・"; }
+
+  .topic-irrelevant { font-size: 12px; color: var(--ink-light); padding-top: 8px; border-top: 1px dashed var(--rule); line-height: 1.65; }
+  .impact-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .impact-label { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--ink-light); text-transform: uppercase; white-space: nowrap; }
+  .impact-dots { display: flex; gap: 4px; }
+  .impact-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rule); }
+  .impact-dot.filled { background: var(--accent); }
+  .impact-desc { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--ink-light); }
+  .irrelevant-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--ink-light); letter-spacing: 0.08em; margin-right: 4px; }
+
+  /* STATES */
+  .loading-state { text-align: center; padding: 60px 20px; }
+  .loading-spinner { width: 32px; height: 32px; border: 2px solid var(--rule); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink-light); letter-spacing: 0.1em; }
+
+  .empty-state { text-align: center; padding: 60px 20px; border: 1px dashed var(--rule); margin: 28px 0; }
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+  .empty-title { font-family: 'Noto Serif JP', serif; font-size: 18px; margin-bottom: 8px; }
+  .empty-desc { font-size: 13px; color: var(--ink-light); line-height: 1.7; }
+
+  .error-bar { background: #FFF0EE; border: 1px solid var(--accent); padding: 12px 16px; margin: 16px 0; font-size: 13px; color: var(--accent); font-family: 'DM Mono', monospace; }
+
+  .footer { border-top: 3px double var(--ink); padding: 20px 0; text-align: center; margin-top: 48px; }
+  .footer-text { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink-light); letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="container">
+    <div class="masthead-date" id="today-date"></div>
+    <div class="masthead-title">Claude Now</div>
+    <div class="masthead-tagline">CLAUDEの最新情報を、あなたの言葉で。</div>
+  </div>
+</div>
+
+<div class="progress-bar" id="progress-bar">
+  <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+</div>
+
+<div class="container">
+  <div class="source-bar">
+    <span class="source-label">ソース：</span>
+    <span class="source-tag">Claude Apps</span>
+    <span class="source-tag">API / Models</span>
+    <span class="source-tag">Anthropic News</span>
+    <button class="fetch-btn" id="fetch-btn" onclick="fetchAndSummarize()">↺ 再取得</button>
+  </div>
+  <div id="error-area"></div>
+  <div id="main-content">
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">最新情報を取得中...</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="container">
+    <div class="footer-text">Claude Now — Claudeの最新情報を、あなたの言葉で。</div>
+  </div>
+</div>
+
+<script>
+  // ページ読み込み時に自動取得
+  window.addEventListener('DOMContentLoaded', () => {
+    fetchAndSummarize();
+  });
+
+  document.getElementById('today-date').textContent =
+    new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+  function setProgress(pct) {
+    const bar = document.getElementById('progress-bar');
+    const fill = document.getElementById('progress-fill');
+    if (pct > 0) { bar.classList.add('active'); fill.style.width = pct + '%'; }
+    else { bar.classList.remove('active'); fill.style.width = '0%'; }
+  }
+  function showError(msg) { document.getElementById('error-area').innerHTML = `<div class="error-bar">⚠ ${msg}</div>`; }
+  function clearError() { document.getElementById('error-area').innerHTML = ''; }
+
+  // web_search経由でリリースノートを取得・要約（CORSを回避）
+  async function fetchAndSummarizeClaude() {
+    const prompt = `You are an editor explaining Claude (by Anthropic) product updates to non-technical Japanese users.
+
+Use web_search to fetch ALL THREE of these pages and aggregate the results:
+1. https://docs.anthropic.com/en/release-notes/claude-apps  (Claude app features: claude.ai, mobile, desktop)
+2. https://docs.anthropic.com/en/release-notes/api  (model updates, API changes)
+3. https://www.anthropic.com/news  (major product announcements, new model launches)
+
+STEP 1 — Fetch each page and list the exact date headings you find (format: "Month DD, YYYY"). Do not invent dates.
+
+STEP 2 — Group all topics from all 3 sources by date. For the most recent 1-2 dates across all sources, produce the output below.
+- If the same announcement appears on multiple pages, include it only once.
+- Include ALL product launches, new features, and new services — even if announced on anthropic.com/news (e.g. new agents, new products, major capability launches). These are the most important to capture.
+- Exclude only truly internal/infrastructure changes (e.g. SDK bug fixes, internal tooling). When in doubt, include it.
+- source field: "app" | "api" | "news"
+- source_url: the direct URL to the specific announcement or release note entry (not just the homepage)
+- impact: integer 1-5 (1=minor fix, 2=small improvement, 3=notable feature, 4=major feature, 5=landmark release)
+- impact_desc: one short Japanese phrase explaining the impact level (e.g. "有料プラン全員に影響", "企業管理者のみ", "全ユーザーの日常操作が変わる")
+
+RULES:
+- Only dates that ACTUALLY appear on the fetched pages
+- All text in Japanese
+- No jargon, no hype — plain facts only
+- day_summary: 4-6 sentences covering ALL topics for that day across all sources. A casual reader should get the full picture from this alone.
+- topics: every relevant topic from that date as a separate item
+- audience_personal: true if useful for individual claude.ai / mobile / desktop users
+- audience_business: true if useful for team/enterprise/admin users
+- usecases: 2-3 concrete examples
+- irrelevant_personal / irrelevant_business: honest statement of who this does NOT affect
+
+CRITICAL: Your entire response must be ONLY a raw JSON array. No text before or after it. No markdown.
+
+[{"date":"YYYY-MM-DD","day_summary":"4〜6文の日本語サマリー","topics":[{"title":"20字以内","summary":"2〜3文","source":"app","audience_personal":true,"audience_business":false,"impact":3,"impact_desc":"影響範囲の一言説明","usecases":["例1","例2"],"irrelevant_personal":"関係ない個人ユーザー","irrelevant_business":"関係ないビジネスユーザー","source_url":"https://..."}]}]`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(`API Error [${data.error.type}]: ${data.error.message}`);
+    if (!data.content || data.content.length === 0) throw new Error('content が空: ' + JSON.stringify(data).slice(0, 300));
+
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    if (!text) throw new Error('textブロックなし。ブロック種別: ' + data.content.map(b => b.type).join(', '));
+
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error('JSONなし。レスポンス: ' + text.slice(0, 300));
+
+    let days;
+    try { days = JSON.parse(jsonMatch[0]); }
+    catch(e) { throw new Error('JSONパース失敗: ' + e.message + ' / ' + jsonMatch[0].slice(0, 200)); }
+
+    // バリデーション：日付が実在する形式かチェック
+    const validDays = days.filter(day => {
+      if (!day.date || !day.topics || !Array.isArray(day.topics)) return false;
+      const d = new Date(day.date);
+      if (isNaN(d.getTime())) return false;
+      // 未来日付はNG
+      if (d > new Date()) { console.warn('未来日付をスキップ:', day.date); return false; }
+      // 1年以上前もNG（古すぎ）
+      const oneYearAgo = new Date(); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      if (d < oneYearAgo) { console.warn('古すぎる日付をスキップ:', day.date); return false; }
+      return true;
+    });
+
+    if (validDays.length === 0) throw new Error('有効な日付のデータがありません。生データ: ' + JSON.stringify(days).slice(0, 300));
+    return validDays;
+  }
+
+  async function fetchAndSummarize() {
+    const btn = document.getElementById('fetch-btn');
+    btn.disabled = true;
+    clearError();
+    setProgress(15);
+
+    const content = document.getElementById('main-content');
+    content.innerHTML = `<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">リリースノートを取得中...</div></div>`;
+
+    try {
+      const days = await fetchAndSummarizeClaude();
+
+      setProgress(95);
+      renderDays(days);
+      setProgress(100);
+      setTimeout(() => setProgress(0), 600);
+
+    } catch (e) {
+      console.error(e);
+      const errMsg = e.message || String(e);
+      showError(errMsg);
+      content.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">取得に失敗しました</div><div class="empty-desc" style="word-break:break-all;font-family:monospace;font-size:11px;">${errMsg}</div></div>`;
+      setProgress(0);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function formatDate(d) {
+    if (!d) return '';
+    try { return new Date(d).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }); }
+    catch { return d; }
+  }
+
+  function getAudienceClass(t) {
+    if (t.audience_personal && t.audience_business) return 'both';
+    if (t.audience_personal) return 'personal';
+    if (t.audience_business) return 'business';
+    return '';
+  }
+
+  function audienceTagHtml(t) {
+    if (t.audience_personal && t.audience_business) return `<span class="audience-tag tag-both">個人・ビジネス両方</span>`;
+    if (t.audience_personal) return `<span class="audience-tag tag-personal">個人ユーザー向け</span>`;
+    if (t.audience_business) return `<span class="audience-tag tag-business">ビジネス向け</span>`;
+    return `<span class="audience-tag tag-unrelated">一般ユーザーには関係なし</span>`;
+  }
+
+  function sourceTagHtml(t) {
+    const labels = { app: 'Claude Apps', api: 'API / Models', news: 'Anthropic News' };
+    const label = labels[t.source] || t.source || '';
+    return label ? `<span class="audience-tag" style="background:var(--rule);color:var(--ink-light);">${label}</span>` : '';
+  }
+
+  function renderDays(days) {
+    let html = '';
+    days.forEach((day, di) => {
+      const isLatest = di === 0;
+      const dateStr = formatDate(day.date);
+
+      // サマリーを段落に分割
+      const summaryParas = (day.day_summary || '').split(/。(?=\S)/).filter(Boolean)
+        .map(s => s.endsWith('。') ? s : s + '。')
+        .map(s => `<p>${s}</p>`).join('');
+
+      html += `<div class="date-group">
+        <div class="date-label ${isLatest ? 'latest' : ''}">
+          ${dateStr}
+          ${isLatest ? '<span class="latest-badge">LATEST</span>' : ''}
+        </div>
+
+        <div class="summary-card">
+          <div class="summary-card-eyebrow">この日のまとめ</div>
+          <div class="summary-card-headline">${dateStr}のアップデート</div>
+          <div class="summary-card-body">${summaryParas || day.day_summary}</div>
+          <hr class="summary-divider">
+          <div class="summary-scroll-hint">↓ 各アップデートの詳細はこの下</div>
+        </div>
+
+        <div class="topics-label">詳細</div>`;
+
+      (day.topics || []).forEach(t => {
+        const usecasesHtml = (t.usecases || []).map(u => `<li>${u.replace(/^[・•\-]\s*/, '')}</li>`).join('');
+        const irrelevantParts = [
+          t.irrelevant_personal ? `個人：${t.irrelevant_personal}` : '',
+          t.irrelevant_business ? `企業：${t.irrelevant_business}` : ''
+        ].filter(Boolean).join('　／　');
+
+        const impact = t.impact || 0;
+        const dots = [1,2,3,4,5].map(i => `<span class="impact-dot${i <= impact ? ' filled' : ''}"></span>`).join('');
+        const impactHtml = impact ? `<div class="impact-bar">
+          <span class="impact-label">インパクト</span>
+          <div class="impact-dots">${dots}</div>
+          ${t.impact_desc ? `<span class="impact-desc">${t.impact_desc}</span>` : ''}
+        </div>` : '';
+
+        html += `<div class="topic-card ${getAudienceClass(t)}">
+          <div class="card-top">${audienceTagHtml(t)}${sourceTagHtml(t)}</div>
+          <div class="topic-title">${t.title}</div>
+          ${impactHtml}
+          <div class="topic-summary">${t.summary}</div>
+          ${usecasesHtml ? `<div class="topic-usecase">
+            <div class="usecase-label">こんな人に関係あります</div>
+            <div class="usecase-text"><ul>${usecasesHtml}</ul></div>
+          </div>` : ''}
+          ${irrelevantParts ? `<div class="topic-irrelevant"><span class="irrelevant-label">関係ない人：</span>${irrelevantParts}</div>` : ''}
+          ${t.source_url ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--rule);"><a href="${t.source_url}" target="_blank" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.08em;color:var(--ink-light);">元記事を読む →</a></div>` : ''}
+        </div>`;
+      });
+
+      html += `</div>`;
+    });
+
+    document.getElementById('main-content').innerHTML = html;
+  }
+</script>
+</body>
+</html>

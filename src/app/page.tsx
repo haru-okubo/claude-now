@@ -1,65 +1,144 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import type { Article } from "@/lib/types";
+import Masthead from "@/components/Masthead";
+import SourceBar from "@/components/SourceBar";
+import DateGroup from "@/components/DateGroup";
+import SubscribeForm from "@/components/SubscribeForm";
+import Footer from "@/components/Footer";
 
 export default function Home() {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function fetchArticles() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/articles");
+      if (!res.ok) throw new Error("記事の取得に失敗しました");
+      const data = await res.json();
+      setArticles(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchArticles();
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <>
+      <Masthead />
+
+      {/* Progress bar */}
+      {loading && (
+        <div style={{ height: 2, background: "var(--rule)" }}>
+          <div
+            style={{
+              height: "100%",
+              background: "var(--accent)",
+              width: "60%",
+              transition: "width 0.4s ease",
+            }}
+          />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      )}
+
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px" }}>
+        <SourceBar loading={loading} onRefresh={fetchArticles} />
+
+        {/* Error */}
+        {error && (
+          <div
+            style={{
+              background: "#FFF0EE",
+              border: "1px solid var(--accent)",
+              padding: "12px 16px",
+              margin: "16px 0",
+              fontSize: 13,
+              color: "var(--accent)",
+              fontFamily: "'DM Mono', monospace",
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            {error}
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading && (
+          <div style={{ textAlign: "center", padding: "60px 20px" }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                border: "2px solid var(--rule)",
+                borderTopColor: "var(--accent)",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+                margin: "0 auto 16px",
+              }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <div
+              style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: 12,
+                color: "var(--ink-light)",
+                letterSpacing: "0.1em",
+              }}
+            >
+              最新情報を取得中...
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && articles.length === 0 && (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "60px 20px",
+              border: "1px dashed var(--rule)",
+              margin: "28px 0",
+            }}
           >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📰</div>
+            <div
+              style={{
+                fontFamily: "'Noto Serif JP', serif",
+                fontSize: 18,
+                marginBottom: 8,
+              }}
+            >
+              まだ記事がありません
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--ink-light)",
+                lineHeight: 1.7,
+              }}
+            >
+              Cronジョブが実行されると、ここに最新情報が表示されます。
+            </div>
+          </div>
+        )}
+
+        {/* Articles */}
+        {!loading &&
+          articles.map((article, i) => (
+            <DateGroup key={article.id} article={article} isLatest={i === 0} />
+          ))}
+
+        <SubscribeForm />
+      </div>
+
+      <Footer />
+    </>
   );
 }
