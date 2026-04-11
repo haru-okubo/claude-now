@@ -51,7 +51,7 @@ export default function Home() {
       )}
 
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 24px" }}>
-        <SourceBar loading={loading} onRefresh={fetchArticles} />
+        <SourceBar />
 
         {/* Error */}
         {error && (
